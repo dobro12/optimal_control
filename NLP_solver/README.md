@@ -18,6 +18,7 @@ The source code can be found here. <https://github.com/stevengj/nlopt>
 
 ``` bash
 git clone https://github.com/stevengj/nlopt
+cd nlopt
 mkdir build
 cd build
 cmake ..

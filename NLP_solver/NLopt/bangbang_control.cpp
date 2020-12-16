@@ -8,6 +8,8 @@
 #define X_DIM 2
 #define U_DIM 1
 
+clock_t global_t;
+
 mat dynamics(const mat & x, const mat & u){
     static double A_data[] = {0, 1, 0, 0};
     static double B_data[] = {0, 1};
@@ -17,6 +19,9 @@ mat dynamics(const mat & x, const mat & u){
 }
 
 double objective(unsigned n, const double *x, double *grad, void *my_func_data){
+    std::cout<<"befor objective: "<<(double)(clock() - global_t)/CLOCKS_PER_SEC<<std::endl;
+    global_t = clock();
+
     if (grad) {
         for(int i=0;i<n;i++) grad[i] = 0.0;
         grad[0] = 1.0;
@@ -66,6 +71,9 @@ mat get_collocation_constraint(int N, const double* u, const double* x, double t
 }
 
 void equality_constraints(unsigned m, double *result, unsigned n, const double* x, double* grad, void* f_data){
+    std::cout<<"befor equality_constraints: "<<(double)(clock() - global_t)/CLOCKS_PER_SEC<<std::endl;
+    global_t = clock();
+
     double t_f = x[0];
     int N = (n - 1)/(X_DIM + U_DIM) - 1;
     mat coll_cons;
@@ -138,6 +146,9 @@ void equality_constraints(unsigned m, double *result, unsigned n, const double* 
         grad[n*(2*N + 3) + 3*N + 3] = 1.0;
     }
 
+    std::cout<<"during equality_constraints: "<<(double)(clock() - global_t)/CLOCKS_PER_SEC<<std::endl;
+    global_t = clock();
+
     delete [] temp_u_list_data;
     delete [] temp_x_list_data;
     return;
@@ -145,12 +156,13 @@ void equality_constraints(unsigned m, double *result, unsigned n, const double* 
 
 
 int main(int argc, char* argv[]){
-    clock_t tStart = clock();
     int N = 100;
     double* x = new double[1 + (N + 1)*(X_DIM + U_DIM)];
     double* cons_tol = new double[X_DIM*(N + 2)];
     double min_objective_value;
     nlopt_opt opt;
+    clock_t tStart = clock();
+    global_t = clock();
 
     opt = nlopt_create(NLOPT_LD_SLSQP, 1 + (N + 1)*(X_DIM + U_DIM));
     nlopt_set_min_objective(opt, objective, NULL);
