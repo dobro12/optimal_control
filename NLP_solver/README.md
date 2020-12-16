@@ -10,7 +10,6 @@ There are a lot of NLP solvers like slsqp, pyOpt, scipy, etc.
 
 - NLopt <https://github.com/stevengj/nlopt> (c)
 
-
 I decide to use NLopt solver for c++.
 
 The source code can be found here. <https://github.com/stevengj/nlopt>
@@ -25,3 +24,9 @@ cmake ..
 make
 sudo make install
 ```
+
+## 2020.12.16
+
+NLopt takes 3.6 seconds to calculate the "bangbang_control" optimization problem.
+
+scipy takes 3.7 seconds... There is no advantage to use c++.
