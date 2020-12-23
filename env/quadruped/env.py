@@ -15,13 +15,11 @@ import os
 class Env:
   def __init__(self, enable_draw=False, base_fix=False):
     self.enable_draw = enable_draw
-    self.time_step = 1/100
+    self.time_step = 0.01
     self.num_solver_iterations = 100
     self.sub_step = 1
     self.elapsed_t = 0
-
     self.sub_time_step = self.time_step / self.sub_step
-    self.num_solver_iterations //= self.sub_step
 
     if self.enable_draw:
       self.pybullet_client = bullet_client.BulletClient(connection_mode=pybullet.GUI)
@@ -40,21 +38,23 @@ class Env:
     self.pybullet_client.changeDynamics(planeId, linkIndex=-1, lateralFriction=0.9)
 
     #make model
-    self.model = Cheetah(self.pybullet_client, self.time_step, useFixedBase=base_fix)
+    self.model = Cheetah(self.pybullet_client, useFixedBase=base_fix)
+    self.num_leg = self.model.num_leg
 
 
   def reset(self):
     self.elapsed_t = 0
-    state = self.model.reset()
+    self.model.reset()
+    state = self.model.get_state()
     #camera
     self.camera_reset(self.model.sim_model)
     self.camera_move()
     return state 
 
-  def step(self, inputs, contact_list=[], swing_trajectory_list=[]):
-    inputs = np.reshape(inputs, (4,3))
+  def step(self, force_list, contact_list=[], desired_foot_list=[]):
+    force_list = np.reshape(force_list, (4, 3))
     for i in range(self.sub_step):
-      torque_list = self.model.get_torque_list(inputs, contact_list, swing_trajectory_list, self.elapsed_t)
+      torque_list = self.model.get_torque_list(force_list, contact_list, desired_foot_list, self.elapsed_t)
       self.model.apply_torque(torque_list)
       self.pybullet_client.stepSimulation()
       self.elapsed_t += self.sub_time_step
@@ -63,10 +63,15 @@ class Env:
     self.camera_move()
     return state
     
+  def close(self):
+    pybullet.disconnect(physicsClientId=self.pybullet_client._client)
+    del self.pybullet_client
+    del self.model
+
   def camera_reset(self, target):
     self.camDist = 1.0
-    self.camYaw = 0.0
-    self.camPitch = -15.0 #-15.0
+    self.camYaw = 30.0
+    self.camPitch = -15.0
     self.camTarget = target
     self.camTargetPos, _ = self.pybullet_client.getBasePositionAndOrientation(self.camTarget)
     self.camTargetPos = np.array(self.camTargetPos)

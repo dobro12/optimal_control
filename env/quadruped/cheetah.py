@@ -50,22 +50,20 @@ def diag_mat(diag):
   return mat
 
 
-class Cheetah(object):
-  def __init__( self, pybullet_client, time_step, useFixedBase=True):
+class Cheetah:
+  def __init__( self, pybullet_client, useFixedBase=True):
     # set elementary variable
     self.pybullet_client = pybullet_client
-    self.time_step = time_step
-    self.torque_max = 1000.0
-    self.torque_min = -self.torque_max
+    self.max_torque = 1000.0
     self.max_force = np.inf #1000.0
     self.num_leg = 4
 
     # init value
-    #self.init_base_pos = [0.0, 0.0, 0.25]
-    #self.init_joint_state = [-0.1, -0.7, 1.5]*self.num_leg
-    self.init_base_pos = [0.0, 0.0, 0.15]
+    self.init_base_pos = [0.0, 0.0, 0.25]
+    self.init_joint_state = [-0.1, -0.7, 1.5]*self.num_leg
+    #self.init_base_pos = [0.0, 0.0, 0.15]
+    #self.init_joint_state = [-0.1, -1.4, 2.5]*self.num_leg
     self.init_base_orn = self.pybullet_client.getQuaternionFromEuler([0, 0, 0])
-    self.init_joint_state = [-0.1, -1.4, 2.5]*self.num_leg
     for joint_idx in range(len(self.init_joint_state)):
       if int(joint_idx/3)%2 != 0 and joint_idx%3 == 0:
         self.init_joint_state[joint_idx] = -self.init_joint_state[joint_idx]
@@ -228,28 +226,17 @@ class Cheetah(object):
     state = list(self.base_orn)+list(self. base_vel)+list(self.base_ang_vel)+self.joint_pos_list+self.joint_vel_list+self.contact_feet_list
     return np.array(state)
 
-  def swing_leg_controller(self, leg_idx, swing_trajectory, elapsed_t):
+  def swing_leg_controller(self, leg_idx, desired_trajectory):
+    desired_base_foot_pos, desired_base_foot_vel, desired_base_foot_acc = desired_trajectory
+
     base_foot_pos = self.base_foot_pos_list[leg_idx]
     base_foot_vel = self.base_foot_vel_list[leg_idx]
     joint_pos = self.joint_pos_list[3*leg_idx:3*(leg_idx+1)]
     joint_vel = self.joint_vel_list[3*leg_idx:3*(leg_idx+1)]
 
-    desired_base_foot_pos = np.zeros(3)
-    desired_base_foot_vel = np.zeros(3)
-    desired_base_foot_acc = np.zeros(3)
-    p0, p_ref, ts, te = swing_trajectory
-    z0, zc = p0[2], p_ref[2]
-    desired_base_foot_pos = (p_ref - p0)*(elapsed_t - ts)/(te - ts) + p0
-    desired_base_foot_pos[2] = (z0 - zc)*(((2*elapsed_t - ts - te)/(te - ts))**2) + zc
-    desired_base_foot_vel = (p_ref - p0)/(te - ts)
-    desired_base_foot_vel[2] = 4*(z0 - zc)*(2*elapsed_t - ts - te)/((te - ts)**2)
-    desired_base_foot_acc[2] = 8*(z0 - zc)/((te - ts)**2)
-
     #################
     ## feedforward ##
     ff_torque_list = np.zeros(3)
-    mass = self.feet_mass
-    g = -self.gravity[1]
     Jacobian = self.get_Jacobian(leg_idx, joint_pos)
     J1_dot, J2_dot, J3_dot = self.get_J_dot(leg_idx, joint_pos)
     J_dot = J1_dot*joint_vel[0] + J2_dot*joint_vel[1] + J3_dot*joint_vel[2]
@@ -257,38 +244,33 @@ class Cheetah(object):
     round_J[:,0] = np.matmul(J1_dot, joint_vel)
     round_J[:,1] = np.matmul(J2_dot, joint_vel)
     round_J[:,2] = np.matmul(J3_dot, joint_vel)
-    #M(theta)
+    # M(theta)
     ff_torque_list += np.matmul(Jacobian.T, desired_base_foot_acc - np.matmul(J_dot, joint_vel))
-    #C(theta, theta_dot)
+    # C(theta, theta_dot)
     C_mat = np.matmul(J_dot.T, Jacobian) + np.matmul(Jacobian.T, J_dot) - np.matmul(round_J.T, Jacobian)
     ff_torque_list += np.matmul(C_mat, joint_vel)
-    #G(theta)
+    # G(theta)
     G_mat = np.matmul(self.base_rot.T, -self.gravity)
     G_mat = np.matmul(Jacobian.T, G_mat)
     ff_torque_list += G_mat
-    ## feedforward ##
     #################
 
     differ_base_foot_pos = desired_base_foot_pos - base_foot_pos
     differ_base_foot_vel = desired_base_foot_vel - base_foot_vel
     force_list = np.matmul(self.K_ps, differ_base_foot_pos) + np.matmul(self.K_ds, differ_base_foot_vel)
     force_list = np.clip(force_list, -self.max_force, self.max_force)
-    swing_torque_list = np.matmul(Jacobian.T, force_list) + mass*ff_torque_list
+    swing_torque_list = np.matmul(Jacobian.T, force_list) + self.feet_mass*ff_torque_list
     return swing_torque_list
 
-  def get_torque_list(self, force_list, contact_list, swing_trajectory_list, elapsed_t):
+  def get_torque_list(self, force_list, contact_list, desired_trajectory_list, elapsed_t):
     force_list = np.clip(force_list, -self.max_force, self.max_force)
     force_list[:,2] = np.clip(force_list[:,2], 0, self.max_force)
     torque_list = self.get_torque_from_force(force_list)
     for swing_leg_idx in range(self.num_leg):
       if contact_list[swing_leg_idx] == 1.0:
         continue
-      _, _, ts, te = swing_trajectory_list[swing_leg_idx]
-      if self.contact_feet_list[swing_leg_idx] == 1 and elapsed_t > (ts + te)/2.0:
-        torque_list[swing_leg_idx*3:(swing_leg_idx + 1)*3] = np.zeros(3)
-      else:
-        swing_torque_list = self.swing_leg_controller(swing_leg_idx, swing_trajectory_list[swing_leg_idx], elapsed_t)
-        torque_list[swing_leg_idx*3:(swing_leg_idx + 1)*3] = swing_torque_list
+      swing_torque_list = self.swing_leg_controller(swing_leg_idx, desired_trajectory_list[swing_leg_idx])
+      torque_list[swing_leg_idx*3:(swing_leg_idx + 1)*3] = swing_torque_list
     return torque_list
 
   def reset_pose(self):
@@ -299,7 +281,7 @@ class Cheetah(object):
 
   def apply_torque(self, torque_list):
     for i,j in enumerate(self.joint_list):
-      torque = np.clip(torque_list[i], self.torque_min, self.torque_max)
+      torque = np.clip(torque_list[i], -self.max_torque, self.max_torque)
       self.pybullet_client.setJointMotorControl2(self.sim_model, j, self.pybullet_client.TORQUE_CONTROL, force=torque)
 
   def check_contact(self):
@@ -326,5 +308,3 @@ class Cheetah(object):
 
   def reset(self):
     self.reset_pose()
-    state = self.get_state()
-    return state
