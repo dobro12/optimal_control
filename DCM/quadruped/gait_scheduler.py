@@ -20,19 +20,59 @@ class GaitScheduler:
         self.next_gait_period = self.init_gait_period
         self.gait_freq = 1/self.gait_period_list[0]
         self.swing_time_list = []
-        self.gait_phase = 1.0
+        self.gait_phase = 0.0
+        self.update()
 
         self.swing_elapsed_time_list = np.zeros(self.num_leg)
         self.pre_contact_list = np.ones(self.num_leg)
 
         self.visualize_cnt = 0
+
+    def get_contact_list(self, time_step, time_horizon):
+        contact_list = np.ones((time_horizon, self.num_leg))
+        step_info_list = []
+        for leg_idx in range(self.num_leg):
+            step_info_list.append([False, []])
+
+            swing_time_list = self.swing_time_list[leg_idx]
+            if len(swing_time_list) == 0:
+                continue
+
+            swing_cnt = 0
+            for swing_time in swing_time_list:
+                start_phase, end_phase, swing_period = swing_time
+                if end_phase < self.gait_phase:
+                    continue
+                if start_phase < 1.0:
+                    t1 = start_phase*self.gait_period_list[0]
+                else:
+                    t1 = self.gait_period_list[0] + (start_phase - 1.0)*self.gait_period_list[1]
+                if self.gait_phase < 1.0:
+                    curr_t = self.gait_phase*self.gait_period_list[0]
+                else:
+                    curr_t = self.gait_period_list[0] + (self.gait_phase - 1.0)*self.gait_period_list[1]
+                t2 = t1 + swing_period
+                idx1 = round(max(t1 - curr_t, 0.0)/time_step)
+                idx2 = round(max(t2 - curr_t, 0.0)/time_step)
+                if idx1 >= time_horizon:
+                    break
+                idx2 = min(time_horizon, idx2)
+                if idx1 == idx2:
+                    continue
+
+                contact_list[idx1:idx2, leg_idx] = 0.0
+
+                stand_period = (1.0 - self.gait_list[leg_idx][1])*self.gait_period_list[1] # duration * gait period
+                if swing_cnt == 0 and start_phase < self.gait_phase:
+                    step_info_list[-1][0] = True
+                step_info_list[-1][1].append([stand_period, idx1, idx2])
+                swing_cnt += 1
+
+        return contact_list, step_info_list
         
-    def step(self, time_step):
-        if self.gait_phase >= 1.0:
-            self.gait_phase -= 1.0
+    def update(self):
             self.gait_period_list = [self.gait_period_list[1], self.next_gait_period]
             self.gait_freq = 1/self.gait_period_list[0]
-
             self.swing_time_list = []
             for leg_idx in range(self.num_leg):
                 o_k, d_k = self.gait_list[leg_idx]
@@ -47,6 +87,11 @@ class GaitScheduler:
                 self.swing_time_list.append(temp_swing_time_list + temp_swing_time_list2)
             self.gait_list = deepcopy(self.next_gait_list)
 
+    def step(self, time_step):
+        if self.gait_phase >= 1.0:
+            self.gait_phase -= 1.0
+            self.update()
+
         contact_list = np.ones(self.num_leg)
         gait_info_list = []
         for leg_idx in range(self.num_leg):
@@ -58,7 +103,7 @@ class GaitScheduler:
                     if self.pre_contact_list[leg_idx] == 1.0:
                         self.swing_elapsed_time_list[leg_idx] = 0.0
                     swing_period = swing_time[2]
-                    stand_period = self.gait_list[leg_idx][1]*self.gait_period_list[1] # duration * gait period
+                    stand_period = (1.0 - self.gait_list[leg_idx][1])*self.gait_period_list[1] # stand duration * gait period
                     temp_gait_info_list.append(swing_period)
                     temp_gait_info_list.append(stand_period)
                     temp_gait_info_list.append(self.swing_elapsed_time_list[leg_idx])
