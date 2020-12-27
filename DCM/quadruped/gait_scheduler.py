@@ -10,7 +10,6 @@ class GaitScheduler:
         self.is_visualize = args['is_visualize']
         self.visualize_period = 5
         self.init_gait_list = np.zeros((self.num_leg, 2)) # FR, FL, RR, RL | 0 <= offset < 1, 0 <= duration < 1
-        self.reset()
 
 
     def reset(self):
@@ -43,6 +42,7 @@ class GaitScheduler:
                 start_phase, end_phase, swing_period = swing_time
                 if end_phase < self.gait_phase:
                     continue
+
                 if start_phase < 1.0:
                     t1 = start_phase*self.gait_period_list[0]
                 else:
@@ -52,8 +52,8 @@ class GaitScheduler:
                 else:
                     curr_t = self.gait_period_list[0] + (self.gait_phase - 1.0)*self.gait_period_list[1]
                 t2 = t1 + swing_period
-                idx1 = round(max(t1 - curr_t, 0.0)/time_step)
-                idx2 = round(max(t2 - curr_t, 0.0)/time_step)
+                idx1 = int(round(max(t1 - curr_t, 0.0)/time_step))
+                idx2 = int(round(max(t2 - curr_t, 0.0)/time_step))
                 if idx1 >= time_horizon:
                     break
                 idx2 = min(time_horizon, idx2)

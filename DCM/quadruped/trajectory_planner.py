@@ -11,6 +11,9 @@ class TrajectoryPlanner:
         self.max_ang_accel = args['max_ang_accel']
 
 
+    def reset(self):
+        pass
+
     def get_target_trajectory_list(self, vel_cmd, ang_vel_cmd, height_cmd, init_state):
         assert len(vel_cmd) == 3
         assert len(ang_vel_cmd) == 3
