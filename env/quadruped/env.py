@@ -20,6 +20,7 @@ class Env:
     self.sub_step = 1
     self.elapsed_t = 0
     self.sub_time_step = self.time_step / self.sub_step
+    self.friction_coef = 0.9
 
     if self.enable_draw:
       self.pybullet_client = bullet_client.BulletClient(connection_mode=pybullet.GUI)
@@ -33,9 +34,9 @@ class Env:
     #make vertical plane(bottom plane)
     plane_pos = [0, 0, 0]
     plane_orn = self.pybullet_client.getQuaternionFromEuler([0, 0, 0])
-    planeId = self.pybullet_client.loadURDF("plane_implicit.urdf", plane_pos, plane_orn, useMaximalCoordinates=True)
+    self.planeId = self.pybullet_client.loadURDF("plane_implicit.urdf", plane_pos, plane_orn, useMaximalCoordinates=True)
     self.pybullet_client.setGravity(0, 0, -9.8)
-    self.pybullet_client.changeDynamics(planeId, linkIndex=-1, lateralFriction=0.9)
+    self.pybullet_client.changeDynamics(self.planeId, linkIndex=-1, lateralFriction=self.friction_coef)
 
     #make model
     self.model = Cheetah(self.pybullet_client, useFixedBase=base_fix)
