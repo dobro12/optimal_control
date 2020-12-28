@@ -19,8 +19,7 @@ class NLPSolver:
 
 
     def get_solution(self, init_state_list, target_trajectory_list, target_foot_step_list, contact_list):
-        init_force_list = np.zeros((self.time_horizon, 12))
-        init_x_list = np.concatenate([target_trajectory_list.ravel(), init_force_list.ravel()])
+        init_x_list = np.concatenate([target_trajectory_list.ravel(), self.init_force_list.ravel()])
 
         eq_cons = {
             'type':'eq',
@@ -42,14 +41,19 @@ class NLPSolver:
 
         res = minimize(obj_func, init_x_list, args=[target_trajectory_list, self.Q_mat, self.Qf_mat, self.R_mat, self.time_step], \
                     method="SLSQP", jac=obj_jacobian, bounds=bounds, constraints=[eq_cons, ineq_cons], \
-                    options={'ftol':1e-5, 'disp':True, 'maxiter':50}) #, 'eps':1e-10})
+                    options={'ftol':1e-5, 'disp':False, 'maxiter':20}) #, 'eps':1e-10})
 
         state_list = res.x[:12*self.time_horizon].reshape((self.time_horizon, 12))
         force_list = res.x[12*self.time_horizon:].reshape((self.time_horizon, 12))
+
+        self.init_force_list[:-1, :] = deepcopy(force_list[1:, :])
+        self.init_force_list[-1, :] = deepcopy(force_list[-1, :])
+
         return state_list, force_list
 
     def reset(self):
-        pass
+        self.init_force_list = np.zeros((self.time_horizon, 12))
+
 
 def get_cross_product_matrix(vector):
     a, b, c = vector
