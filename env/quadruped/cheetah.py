@@ -55,7 +55,7 @@ class Cheetah:
     # set elementary variable
     self.pybullet_client = pybullet_client
     self.max_torque = 1000.0
-    self.max_force = np.inf #1000.0
+    self.max_force = 1000.0 #np.inf
     self.num_leg = 4
 
     # init value

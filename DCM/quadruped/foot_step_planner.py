@@ -21,7 +21,7 @@ class FootStepPlanner:
         target_foot_step_list = np.zeros((self.time_horizon, self.num_leg, 3))
 
         for leg_idx in range(self.num_leg):
-            step_info = step_info_list[leg_idx]
+            step_info = deepcopy(step_info_list[leg_idx])
             curr_foot_pos_list[leg_idx][2] = 0.0
             if len(step_info[1]) == 0:
                 target_foot_step_list[:,leg_idx, :] = curr_foot_pos_list[leg_idx]
@@ -38,7 +38,7 @@ class FootStepPlanner:
                 if step_idx == 0 and is_swinging:
                     pre_foot_pos = self.step_list[leg_idx]
                 else:
-                    state = target_trajectory_list[idx2 - 1]
+                    state = deepcopy(target_trajectory_list[idx2 - 1])
                     pos_com = state[:3]
                     rpy_base = state[3:6]
                     vel_base = state[6:9]

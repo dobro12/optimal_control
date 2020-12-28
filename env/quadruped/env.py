@@ -1,3 +1,14 @@
+##### add python path #####
+import sys
+import os
+PATH = os.getcwd()
+for dir_idx, dir_name in enumerate(PATH.split('/')):
+    if 'optimal_control' in dir_name.lower():
+        PATH = '/'.join(PATH.split('/')[:(dir_idx+1)])
+        break
+if not PATH in sys.path:
+    sys.path.append(PATH)
+###########################
 from env.quadruped.cheetah import Cheetah
 
 from pybullet_utils import bullet_client
@@ -46,6 +57,12 @@ class Env:
   def reset(self):
     self.elapsed_t = 0
     self.model.reset()
+
+    torque_list = np.zeros(12)
+    for _ in range(10):
+      self.model.apply_torque(torque_list)
+      self.pybullet_client.stepSimulation()
+
     state = self.model.get_state()
     #camera
     self.camera_reset(self.model.sim_model)
@@ -54,11 +71,12 @@ class Env:
 
   def step(self, force_list, contact_list=[], desired_foot_list=[]):
     force_list = np.reshape(force_list, (4, 3))
-    for i in range(self.sub_step):
+    for _ in range(self.sub_step):
       torque_list = self.model.get_torque_list(force_list, contact_list, desired_foot_list, self.elapsed_t)
       self.model.apply_torque(torque_list)
       self.pybullet_client.stepSimulation()
       self.elapsed_t += self.sub_time_step
+
     state = self.model.get_state()
     #camera
     self.camera_move()

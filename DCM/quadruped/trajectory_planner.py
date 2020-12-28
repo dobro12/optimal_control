@@ -23,10 +23,10 @@ class TrajectoryPlanner:
         ang_vel_cmd[:2] = 0.0
 
         # state : [pos, rpy, vel, ang_vel]
-        pos_com = init_state[:3]
-        rpy_base = init_state[3:6]
-        vel_base = init_state[6:9]
-        ang_vel_base = init_state[9:]
+        pos_com = deepcopy(init_state[:3])
+        rpy_base = deepcopy(init_state[3:6])
+        vel_base = deepcopy(init_state[6:9])
+        ang_vel_base = deepcopy(init_state[9:])
 
         pos_com[2] = height_cmd
         vel_base[2] = 0.0
