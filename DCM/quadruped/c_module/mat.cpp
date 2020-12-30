@@ -70,6 +70,33 @@ class mat{
         memcpy(data, A.data, sizeof(double)*row*col);
         return *this;
     }
+
+    mat & operator -=(const mat & A){
+        if(col != A.col || row != A.row){
+            std::cerr<<"[error!!] do not match dimension"<<std::endl;
+            throw ERR;
+        }
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                data[i*col + j] -= A.data[i*col + j];
+            }
+        }
+        return *this;
+    }
+
+    mat & operator +=(const mat & A){
+        if(col != A.col || row != A.row){
+            std::cerr<<"[error!!] do not match dimension"<<std::endl;
+            throw ERR;
+        }
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                data[i*col + j] += A.data[i*col + j];
+            }
+        }
+        return *this;
+    }
+
     const mat operator +(const mat & A) const{
         if(col != A.col || row != A.row){
             std::cerr<<"[error!!] do not match dimension"<<std::endl;
@@ -85,6 +112,7 @@ class mat{
         delete[] temp_data;
         return B;        
     }
+
     const mat operator -(const mat & A) const{
         if(col != A.col || row != A.row){
             std::cerr<<"[error!!] do not match dimension"<<std::endl;
@@ -100,6 +128,7 @@ class mat{
         delete[] temp_data;
         return B;        
     }
+
     const mat operator *(const double & A) const{
         double* temp_data = new double[row*col];
         for(int i=0;i<row;i++){
@@ -111,6 +140,7 @@ class mat{
         delete[] temp_data;
         return B;        
     }
+
     const mat operator *(const mat & A) const{
         if(col != A.col || row != A.row){
             std::cerr<<"[error!!] do not match dimension"<<std::endl;
@@ -158,6 +188,27 @@ class mat{
         return A;
     }
 
+    void clip(const double & a, const double & b) {
+        if(a >= b){
+            std::cerr<<"[error!!] a is bigger than b."<<std::endl;
+            throw ERR;
+        }
+
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                if(data[i*col + j] < a){
+                    data[i*col + j] = a;
+                }
+                else{
+                    if(data[i*col + j] > b){
+                        data[i*col + j] = b;
+                    }
+                }
+            }
+        }
+        return;
+    }
+
     const mat transpose() const{
         double* temp_data = new double[row*col];
         for(int i=0;i<row;i++){
@@ -185,6 +236,17 @@ class mat{
         std::cout<<"]"<<std::endl;
     }
 
+    int count_violation(double a, double b) const{
+        int cnt = 0;
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                if(data[i*col + j] < a || data[i*col + j] > b)
+                    cnt += 1;
+            }
+        }
+        return cnt;
+    }
+
     double magnitude() const{
         double mag = 0;
         for(int i=0;i<row;i++){
@@ -194,6 +256,25 @@ class mat{
         }
         mag = sqrt(mag);
         return mag;
+    }
+
+    double sum() const{
+        double value = 0;
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                value += data[i*col + j];
+            }
+        }
+        return value;
+    }
+
+    void zeros(){
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                data[i*col + j] = 0.0;
+            }
+        }
+        return;
     }
 
     double dot(const mat& A) const{
@@ -403,6 +484,14 @@ class mat{
         return temp_mat;
     }
 
+    static const mat z_rot_dot(const double yaw) {
+        double temp_data[] = {-sin(yaw), -cos(yaw), 0.0,
+                            cos(yaw), -sin(yaw), 0.0,
+                            0.0, 0.0, 0.0};
+        mat rot(temp_data, 3, 3);
+        return rot;
+    }
+
     static const mat eye(int dim){
         double* temp_data = new double[dim*dim];
         for(int i=0;i<dim;i++){
@@ -416,6 +505,14 @@ class mat{
         mat A(temp_data, dim, dim);
         delete[] temp_data;
         return A;
+    }
+
+    static const mat cross_product(double* vector){
+        double temp_data[] = {0.0, -vector[2], vector[1],
+                            vector[2], 0.0, -vector[0],
+                            -vector[1], vector[0], 0.0};
+        mat rot(temp_data, 3, 3);
+        return rot;
     }
 };
 

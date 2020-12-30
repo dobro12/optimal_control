@@ -102,7 +102,7 @@ class Cheetah:
     self.knee_axis_list = np.array([[0.0, -1.0, 0.0], [0.0, -1.0, 0.0], [0.0, -1.0, 0.0], [0.0, -1.0, 0.0]])
 
     # physics parameter
-    self.inertia = [[0.011253, 0, 0], [0, 0.036203, 0], [0, 0, 0.042673]]
+    self.inertia = np.array([[0.011253, 0, 0], [0, 0.036203, 0], [0, 0, 0.042673]])
     self.leg_mass = 0.54 + 0.634 + 0.064 + 0.15
     #self.feet_mass = self.leg_mass*0.24
     #self.mass = 1.0*(3.3 + 4*self.leg_mass)
