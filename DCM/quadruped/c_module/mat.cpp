@@ -514,6 +514,43 @@ class mat{
         mat rot(temp_data, 3, 3);
         return rot;
     }
+
+    static const mat diag(int dim, double* vector){
+        double* temp_data = new double[dim*dim];
+        for(int i=0;i<dim;i++){
+            for(int j=0;j<dim;j++){
+                if(i == j)
+                    temp_data[i*dim + j] = vector[i];
+                else
+                    temp_data[i*dim + j] = 0.0;
+            }
+        }
+        mat A(temp_data, dim, dim);
+        delete[] temp_data;
+        return A;
+    }
+
+    static const mat diag_ineq(int dim, double* vector, const mat & c_mat, const mat & lambda_mat){
+        double* temp_data = new double[dim*dim];
+        for(int i=0;i<dim;i++){
+            for(int j=0;j<dim;j++){
+                if(i == j){
+                    if(c_mat.data[i] < 0 || lambda_mat.data[i] == 0){
+                        temp_data[i*dim + j] = 0.0;
+                    }
+                    else{
+                        temp_data[i*dim + j] = vector[i];
+                    }
+                }
+                else{
+                    temp_data[i*dim + j] = 0.0;
+                }
+            }
+        }
+        mat A(temp_data, dim, dim);
+        delete[] temp_data;
+        return A;
+    }
 };
 
 #endif

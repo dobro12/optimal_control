@@ -105,7 +105,6 @@ class GaitScheduler:
                     swing_period = swing_time[2]
                     stand_period = (1.0 - self.gait_list[leg_idx][1])*self.gait_period_list[1] # stand duration * gait period
                     temp_gait_info_list.append(swing_period)
-                    temp_gait_info_list.append(stand_period)
                     temp_gait_info_list.append(self.swing_elapsed_time_list[leg_idx])
                     self.swing_elapsed_time_list[leg_idx] += time_step
                     break
@@ -189,8 +188,10 @@ if __name__ == "__main__":
     gs_args = dict()
     gs_args['num_leg'] = num_leg
     gs_args['gait_period'] = 1.0
-    gs_args['is_visualize'] = True
+    gs_args['is_visualize'] = True #False
     gait_scheduler = GaitScheduler(gs_args)
+
+    gait_scheduler.reset()
 
     while global_time < 10.0:
         
@@ -208,6 +209,9 @@ if __name__ == "__main__":
             gait_list[0,1] = 0.5 # duration
             gait_period = 1.0
             gait_scheduler.set_gait_list(gait_list, gait_period)
+
+        contact_list, step_info_list = gait_scheduler.get_contact_list(0.05, 10)
+        print(step_info_list)
 
         contact_list, gait_info_list = gait_scheduler.step(time_step)
 

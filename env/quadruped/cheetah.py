@@ -104,13 +104,12 @@ class Cheetah:
     # physics parameter
     self.inertia = np.array([[0.011253, 0, 0], [0, 0.036203, 0], [0, 0, 0.042673]])
     self.leg_mass = 0.54 + 0.634 + 0.064 + 0.15
-    #self.feet_mass = self.leg_mass*0.24
+    self.feet_mass = self.leg_mass*0.24
     #self.mass = 1.0*(3.3 + 4*self.leg_mass)
-    self.feet_mass = self.leg_mass*0.5
     self.mass = 0.9*(3.3 + 4*self.leg_mass)
     self.gravity = np.array([0, 0, -9.8])
-    #self.base_com_pos = np.array([5.0e-3, 0.0, 0.0])
-    self.base_com_pos = np.array([-5.0e-3, 0.0, 0.0])
+    self.base_com_pos = np.array([1.0e-3, 0.0, 0.0])
+    #self.base_com_pos = np.array([-5.0e-3, 0.0, 0.0])
 
     # for swing leg trajectory
     self.K_ps = np.eye(3) * 500.0

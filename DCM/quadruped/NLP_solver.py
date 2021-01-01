@@ -18,14 +18,14 @@ class NLPSolver:
         self.max_force = args['max_force']
 
 
-    def get_solution(self, init_state_list, target_trajectory_list, target_foot_step_list, contact_list):
+    def get_solution(self, init_state, target_trajectory_list, target_foot_step_list, contact_list):
         init_x_list = np.concatenate([target_trajectory_list.ravel(), self.init_force_list.ravel()])
 
         eq_cons = {
             'type':'eq',
             'fun' :eq_cons_func,
             'jac' :eq_cons_jacobian,
-            'args':[[init_state_list, target_foot_step_list, contact_list, self.time_step, self.base_inertia, self.base_mass]],
+            'args':[[init_state, target_foot_step_list, contact_list, self.time_step, self.base_inertia, self.base_mass]],
             }
 
         ineq_cons = {
@@ -41,7 +41,7 @@ class NLPSolver:
 
         res = minimize(obj_func, init_x_list, args=[target_trajectory_list, self.Q_mat, self.Qf_mat, self.R_mat, self.time_step], \
                     method="SLSQP", jac=obj_jacobian, bounds=bounds, constraints=[eq_cons, ineq_cons], \
-                    options={'ftol':1e-5, 'disp':False, 'maxiter':20}) #, 'eps':1e-10})
+                    options={'ftol':1e-5, 'disp':False, 'maxiter':30}) #, 'eps':1e-10})
 
         state_list = res.x[:12*self.time_horizon].reshape((self.time_horizon, 12))
         force_list = res.x[12*self.time_horizon:].reshape((self.time_horizon, 12))
@@ -53,6 +53,18 @@ class NLPSolver:
 
     def reset(self):
         self.init_force_list = np.zeros((self.time_horizon, 12))
+
+    def get_approx_eq_cons_jacobian(self, init_state, target_trajectory_list, target_foot_step_list, contact_list):
+        init_x_list = np.concatenate([target_trajectory_list.ravel(), self.init_force_list.ravel()])
+        args = [init_state, target_foot_step_list, contact_list, self.time_step, self.base_inertia, self.base_mass]
+
+        approx_jacobian = np.zeros((12*self.time_horizon, 24*self.time_horizon))
+        eps = 1e-10
+        func_value = eq_cons_func(init_x_list , args)
+        for idx in range(len(init_x_list)):
+            temp_x_list = np.zeros_like(init_x_list)
+            temp_x_list[idx] = eps
+            approx_jacobian[:, idx] = (eq_cons_func(init_x_list + temp_x_list, args) - func_value)/eps
 
 
 def get_cross_product_matrix(vector):
@@ -99,7 +111,7 @@ def obj_jacobian(x, args):
     return jacobian
 
 def eq_cons_func(x, args):
-    init_state_list = args[0]
+    init_state = args[0]
     target_foot_step_list = args[1]
     contact_list = args[2]
     delta_t = args[3]
@@ -112,7 +124,7 @@ def eq_cons_func(x, args):
     force_list = x[int(len(x)/2):].reshape((time_horizon, 12))
     
     eq_cons = []
-    state = init_state_list
+    state = init_state
     gravity = np.zeros(12)
     gravity[6:9] = delta_t*np.array([0, 0, -9.8])
     for time_idx in range(time_horizon):
@@ -143,7 +155,7 @@ def eq_cons_func(x, args):
     return eq_cons
 
 def eq_cons_jacobian(x, args):
-    init_state_list = args[0]
+    init_state = args[0]
     target_foot_step_list = args[1]
     contact_list = args[2]
     delta_t = args[3]
@@ -156,7 +168,7 @@ def eq_cons_jacobian(x, args):
     force_list = x[int(len(x)/2):].reshape((time_horizon, 12))
     
     jacobian = np.zeros((12*time_horizon, len(x)))
-    state = init_state_list
+    state = init_state
     for time_idx in range(time_horizon):        
         next_state = state_list[time_idx]
         force = (force_list[time_idx].reshape((4,3))*contact_list[time_idx].reshape(4,1)).ravel()

@@ -7,10 +7,12 @@ class FootStepPlanner:
         self.time_horizon = args['time_horizon']
         self.num_leg = args['num_leg']
         self.abduct_org_list = args['abduct_org_list']
+        self.base_pos_com = args['base_pos_com']
 
 
     def reset(self):
         self.step_list = np.zeros((self.num_leg, 3)) 
+        self.base_step_list = np.zeros((self.num_leg, 3)) 
 
     def get_target_foot_pos_list(self):
         return deepcopy(self.step_list)
@@ -45,13 +47,14 @@ class FootStepPlanner:
                     ang_vel_base = state[9:]
 
                     r = Rotation.from_euler('z', rpy_base[2], degrees=False)
-                    pre_foot_pos = pos_com + np.matmul(r.as_matrix(), self.abduct_org_list[leg_idx])
+                    pre_foot_pos = pos_com + np.matmul(r.as_matrix(), self.abduct_org_list[leg_idx] - self.base_pos_com)
                     pre_foot_pos += stand_period*0.5*vel_base + 0.03*(vel_base - vel_cmd)
                     pre_foot_pos += 0.5*np.sqrt(height_cmd/9.8)*np.cross(vel_base, ang_vel_cmd)
                     pre_foot_pos[2] = 0.0
 
-                if step_idx == 0:
-                    self.step_list[leg_idx, :] = pre_foot_pos
+                    if step_idx == 0:
+                        self.step_list[leg_idx, :] = deepcopy(pre_foot_pos)
+                        self.base_step_list[leg_idx, :] = np.matmul(r.as_matrix().T, pre_foot_pos - pos_com) + self.base_pos_com
 
             target_foot_step_list[pre_idx:self.time_horizon, leg_idx, :] = pre_foot_pos
         return target_foot_step_list

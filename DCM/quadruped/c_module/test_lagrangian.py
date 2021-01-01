@@ -82,8 +82,8 @@ def main():
 
     init_force_list = np.zeros((plan_time_horizon, force_dim))
     init_x_list = np.concatenate([target_trajectory_list.ravel(), init_force_list.ravel()])
-    init_lambda_list = np.ones(plan_time_horizon*(state_dim + force_dim))
-    init_mu_list = np.ones(plan_time_horizon*(state_dim + force_dim))
+    init_lambda_list = np.ones(plan_time_horizon*state_dim)
+    init_mu_list = np.ones(plan_time_horizon*force_dim)
     learning_rate = 0.001
 
     # optimization data
@@ -112,8 +112,8 @@ def main():
     CPP_LIB.solve.argtypes = (
         # optimization data
         ctypes.POINTER(ctypes.c_double*(plan_time_horizon*x_dim)), 
-        ctypes.POINTER(ctypes.c_double*(plan_time_horizon*(state_dim + force_dim))), 
-        ctypes.POINTER(ctypes.c_double*(plan_time_horizon*(state_dim + force_dim))), 
+        ctypes.POINTER(ctypes.c_double*(plan_time_horizon*state_dim)), 
+        ctypes.POINTER(ctypes.c_double*(plan_time_horizon*force_dim)), 
         ctypes.c_double, 
         # planning data
         ctypes.c_int, ctypes.c_double, 

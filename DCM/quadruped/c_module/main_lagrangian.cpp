@@ -42,11 +42,8 @@ extern "C" {
         mat foot_step_list(foot_step_data, time_horizon, num_leg*3);
         mat contact_list(contact_data, time_horizon, num_leg);
         mat base_inertia(base_inertia_data, 3, 3);
-        mat lambda_eq_mat(lambda_value, 1, time_horizon*state_dim);
-        mat lambda_ineq_mat(&lambda_value[time_horizon*state_dim], 1, time_horizon*force_dim);
-        mat mu_eq_mat(mu_value, 1, time_horizon*state_dim);
-        mat mu_ineq_mat(&mu_value[time_horizon*state_dim], 1, time_horizon*force_dim);
-        double phi_value = 2.0;
+        mat lambda_mat(lambda_value, 1, time_horizon*state_dim);
+        mat mu_mat(mu_value, 1, time_horizon*force_dim);
 
         double f_value = 0.0;
         double pre_f_value = 0.0;
@@ -57,50 +54,34 @@ extern "C" {
         mat dc_ineqdx(time_horizon*force_dim, time_horizon*(state_dim + force_dim));
         // ################################### //
 
-        for(int i=0;i<10;i++){
-            // update x
-
-            for(int j=0;j<100;j++){
-                dfdx.zeros();
-                dc_eqdx.zeros();
-                dc_ineqdx.zeros();
-                obj_jacobian(dfdx, x_mat, time_horizon, time_step, Q_mat, Qf_mat, R_mat, target_state_list);
-                eq_cons_jacobian(dc_eqdx, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
-                ineq_cons_jacobian(dc_ineqdx, x_mat, time_horizon, time_step, contact_list, friction_coef);
-                eq_cons_func(c_eq, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
-                ineq_cons_func(c_ineq, x_mat, time_horizon, time_step, contact_list, friction_coef);
-                x_mat -= (dfdx + lambda_eq_mat.matmul(dc_eqdx) + lambda_ineq_mat.matmul(dc_ineqdx) \
-                            + c_eq.matmul(mat::diag(time_horizon*state_dim, mu_eq_mat.data).matmul(dc_eqdx)) \
-                            + c_ineq.matmul(mat::diag_ineq(time_horizon*force_dim, mu_ineq_mat.data, c_ineq, lambda_ineq_mat).matmul(dc_ineqdx)))*learning_rate;
-
-                pre_f_value = f_value;
-                f_value = obj_func(x_mat, time_horizon, time_step, Q_mat, Qf_mat, R_mat, target_state_list);
-                f_value += lambda_eq_mat.matmul(c_eq.transpose()).data[0];
-                f_value += lambda_ineq_mat.matmul(c_ineq.transpose()).data[0];
-                f_value += c_eq.matmul(mat::diag(time_horizon*state_dim, mu_eq_mat.data).matmul(c_eq.transpose())).data[0];
-                f_value += c_ineq.matmul(mat::diag_ineq(time_horizon*force_dim, mu_ineq_mat.data, c_ineq, lambda_ineq_mat).matmul(c_ineq.transpose())).data[0];
-                cout<<"objective function : "<<f_value<<endl;
-                cout<<"difference of f : "<<abs(f_value - pre_f_value)<<endl;
-            }
-
+        eq_cons_func(c_eq, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
+        ineq_cons_func(c_ineq, x_mat, time_horizon, time_step, contact_list, friction_coef);
+        for(int i=0;i<10000;i++){
             // update lagrangian multiplier
-            eq_cons_func(c_eq, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
-            ineq_cons_func(c_ineq, x_mat, time_horizon, time_step, contact_list, friction_coef);
-            lambda_eq_mat += c_eq*mu_eq_mat;
-            lambda_ineq_mat += c_ineq*mu_ineq_mat;
-            lambda_eq_mat.clip(-100.0, 100.0);
-            lambda_ineq_mat.clip(0.0, 100.0);
+            lambda_mat += c_eq*learning_rate;
+            mu_mat += c_ineq*learning_rate;
+            lambda_mat.clip(-1e10, 1e10);
+            mu_mat.clip(0.0, 1e10);
 
-            // update penalty term
-            mu_eq_mat += mu_eq_mat*phi_value;
-            mu_ineq_mat += mu_ineq_mat*phi_value;
+            // update x
+            dfdx.zeros();
+            dc_eqdx.zeros();
+            dc_ineqdx.zeros();
+            obj_jacobian(dfdx, x_mat, time_horizon, time_step, Q_mat, Qf_mat, R_mat, target_state_list);
+            eq_cons_jacobian(dc_eqdx, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
+            ineq_cons_jacobian(dc_ineqdx, x_mat, time_horizon, time_step, contact_list, friction_coef);
+            x_mat -= (dfdx + lambda_mat.matmul(dc_eqdx) + mu_mat.matmul(dc_ineqdx))*learning_rate;
 
-            if((i+1)%1 == 0){
+            if((i+1)%100 == 0){
                 pre_f_value = f_value;
                 f_value = obj_func(x_mat, time_horizon, time_step, Q_mat, Qf_mat, R_mat, target_state_list);
                 cout<<"####################################################"<<endl;
                 cout<<"objective function : "<<f_value<<endl;
                 cout<<"difference of f : "<<abs(f_value - pre_f_value)<<endl;
+
+                eq_cons_func(c_eq, x_mat, time_horizon, time_step, init_state, foot_step_list, contact_list, base_inertia, base_mass);
+                ineq_cons_func(c_ineq, x_mat, time_horizon, time_step, contact_list, friction_coef);
+                cout<<"lagragian function value : "<<f_value + (lambda_mat*c_eq).sum() + (mu_mat*c_ineq).sum()<<endl;
                 cout<<"# of violation of c_eq : "<<c_eq.count_violation(-1e-5, 1e-5)<<endl;            
                 cout<<"# of violation of c_ineq : "<<c_ineq.count_violation(-1e10, 1e-5)<<endl;            
             }
